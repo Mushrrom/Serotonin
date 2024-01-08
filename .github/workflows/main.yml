@@ -5,7 +5,23 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
-      - run: ./build.sh
+      - run: set -e # why wasn't this there earlier – bomberfish
+      - run: echo "Building IPA"
+      - run: xcodebuild clean build -sdk iphoneos -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED="NO"
+      - run: echo "done building"
+      - run: cd RootHelperSample
+      - run: ldid -Sentitlements.plist -Cadhoc ../usprebooter/ldid
+      - run: ldid -Sentitlements.plist -Cadhoc ../usprebooter/fastPathSign
+      - run: gmake -j$(sysctl -n hw.ncpu)
+      - run: ldid -Sentitlements.plist -Cadhoc .theos/obj/debug/arm64/trolltoolsroothelper
+      - run: mv .theos/obj/debug/arm64/trolltoolsroothelper ../build/Release-iphoneos/usprebooter.app/trolltoolsroothelper
+      - run: cd ../build/Release-iphoneos
+      - run: rm -rf Payload
+      - run: rm -rf FUCK.tipa
+      - run: mkdir Payload
+      - run: cp -r usprebooter.app Payload
+      - run: ldid -S../../ent.xml -Cadhoc Payload/usprebooter.app/usprebooter
+      - run: zip -vr FUCK.tipa Payload/ -x "*.DS_Store"
       - name: (Upload) Executable
         id: artifact_upload
         uses: actions/upload-artifact@v3
